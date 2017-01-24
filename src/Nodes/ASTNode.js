@@ -13,6 +13,6 @@ class Position {
 
 export default class ASTNode {
     constructor(position) {
-        //this.position = new Position(position);
+        // this.position = new Position(position);
     }
 }

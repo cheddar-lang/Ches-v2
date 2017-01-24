@@ -18,7 +18,13 @@
 %}
 
 %{
-    var stringBuffer = "";
+    // String handling
+    //
+    // This handles strings and the
+    // pending string will go here
+    if (!('stringBuffer' in yy)) {
+        yy.stringBuffer = "";
+    }
 %}
 
 %lex
@@ -35,31 +41,47 @@ VARIABLE_TAIL [A-Za-z_$0-9]
 %%
 
 // Ignore the followings things because we don't like them
-
-"//".*                                            ;
+"//".*                                            ; // Single line comments
 
 // Handles Multiline comments
 ("/*")                                            this.begin("MULTILINE_COMMENT");
 <MULTILINE_COMMENT>(?:[^/*]|"*"[^/]|"/"[^*])+     ;
 <MULTILINE_COMMENT>("*/")                         this.popState();
 
-<INITIAL>["]                                      this.begin("DQ_STRING");
-<INITIAL>[']                                      this.begin("SQ_STRING");
-<DQ_STRING>[^"\\]*                                stringBuffer += yytext;
-<SQ_STRING>[^'\\]*                                stringBuffer += yytext;
-<SQ_STRING,DQ_STRING>\\u\{[0-9A-Fa-f]+\}          stringBuffer += String.fromCodePoint( parseInt( yytext.slice(3, -1), 16 ) );
-<SQ_STRING,DQ_STRING>\\\0                         stringBuffer += "\u0000";
-<SQ_STRING,DQ_STRING>\\\a                         stringBuffer += "\u0008";
-<SQ_STRING,DQ_STRING>\\\b                         stringBuffer += "\b";
-<SQ_STRING,DQ_STRING>\\\t                         stringBuffer += "\t";
-<SQ_STRING,DQ_STRING>\\\n                         stringBuffer += "\n";
-<SQ_STRING,DQ_STRING>\\\v                         stringBuffer += "\v";
-<SQ_STRING,DQ_STRING>\\\f                         stringBuffer += "\f";
-<SQ_STRING,DQ_STRING>\\\r                         stringBuffer += "\r";
-<SQ_STRING,DQ_STRING>\\\e                         stringBuffer += "\u001B";
-<SQ_STRING,DQ_STRING>\\.                          stringBuffer += yytext[1];
-<DQ_STRING>["]                                    { yytext = stringBuffer; stringBuffer = ""; this.popState(); return 'STRING' }
-<SQ_STRING>[']                                    { yytext = stringBuffer; stringBuffer = ""; this.popState(); return 'STRING' }
+<INITIAL>["]                                      { this.begin("DQ_STRING"); yy.stringBufferStart = yylloc };
+<INITIAL>[']                                      { this.begin("SQ_STRING"); yy.stringBufferStart = yylloc };
+<DQ_STRING>[^"\\]*                                yy.stringBuffer += yytext;
+<SQ_STRING>[^'\\]*                                yy.stringBuffer += yytext;
+<SQ_STRING,DQ_STRING>\\u\{[0-9A-Fa-f]+\}          yy.stringBuffer += String.fromCodePoint( parseInt( yytext.slice(3, -1), 16 ) );
+<SQ_STRING,DQ_STRING>\\\0                         yy.stringBuffer += "\u0000";
+<SQ_STRING,DQ_STRING>\\\a                         yy.stringBuffer += "\u0008";
+<SQ_STRING,DQ_STRING>\\\b                         yy.stringBuffer += "\b";
+<SQ_STRING,DQ_STRING>\\\t                         yy.stringBuffer += "\t";
+<SQ_STRING,DQ_STRING>\\\n                         yy.stringBuffer += "\n";
+<SQ_STRING,DQ_STRING>\\\v                         yy.stringBuffer += "\v";
+<SQ_STRING,DQ_STRING>\\\f                         yy.stringBuffer += "\f";
+<SQ_STRING,DQ_STRING>\\\r                         yy.stringBuffer += "\r";
+<SQ_STRING,DQ_STRING>\\\e                         yy.stringBuffer += "\u001B";
+<SQ_STRING,DQ_STRING>\\.                          yy.stringBuffer += yytext[1];
+<DQ_STRING>["]                                    {
+                                                    yytext = yy.stringBuffer;
+                                                    yylloc.first_line = yy.stringBufferStart.first_line;
+                                                    yylloc.first_column = yy.stringBufferStart.first_column;
+                                                    yy.stringBuffer = "";
+                                                    this.popState();
+                                                    return 'STRING'
+                                                  }
+<SQ_STRING>[']                                    {
+                                                    yytext = yy.stringBuffer;
+                                                    yylloc.first_line = yy.stringBufferStart.first_line;
+                                                    yylloc.first_column = yy.stringBufferStart.first_column;
+                                                    yy.stringBuffer = "";
+                                                    this.popState();
+                                                    return 'STRING'
+                                                  }
+
+"->"                                              return 'LAMBDA_INDICATOR';
+"?"                                               return '?';
 
 \d+(\.\d+)?                                       return 'NUMBER';
 \.\d+                                             return 'NUMBER';
@@ -75,7 +97,12 @@ VARIABLE_TAIL [A-Za-z_$0-9]
 "("                                               return '(';
 ")"                                               return ')';
 
+"@"[A-Za-z0-9_$]+                                 { yytext = yytext.substring(1); return 'SYMBOL' };
+
 
 ";"                                               return 'SB';
 \n                                                return 'SB';
 <<EOF>>                                           return 'SB';
+
+\s+                                               ; // Whitespace
+.                                                 return yytext

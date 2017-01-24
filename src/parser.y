@@ -73,14 +73,40 @@ PropertyTailItem
 Literal
     : Number
     | String
+    | Array
+    | Symbol
+    | Dictionary
     ;
 
 Number
-    : NUMBER -> new node.NumberLiteral(@1, $1)
+    : NUMBER       -> new node.NumberLiteral(@1, $1)
+    ;
+
+Array
+    : '[' List ']' -> new node.ArrayLiteral(@$, $2)
     ;
 
 String
-    : STRING -> new node.StringLiteral(@1, $1)
+    : STRING       -> new node.StringLiteral(@$, $1)
+    ;
+
+Symbol
+    : SYMBOL       -> new node.SymbolLiteral(@$, $1)
+    ;
+
+/* Dictionaries are a little harder so just a little section here for them */
+Dictionary
+    : '[' DictionaryItems ']' -> new node.DictionaryLiteral(@2, $2)
+    | '[' ':' ']'             -> new node.DictionaryLiteral(@$, [])
+    ;
+
+DictionaryItems
+    : DictionaryItems ',' DictionaryItem -> $1.concat([$3])
+    | DictionaryItem                     -> [ $1 ]
+    ;
+
+DictionaryItem
+    : Expression ':' Expression          -> [ $1, $3 ]
     ;
 
 /**
@@ -95,9 +121,10 @@ List
     : ListItems
     |                     -> []
     ;
+
 ListItems
-    : List COMMA Expression -> $1.concat($3)
-    | Expression          -> [ $1 ]
+    : ListItems ',' Expression -> $1.concat($3)
+    | Expression               -> [ $1 ]
     ;
 
 Identifier
