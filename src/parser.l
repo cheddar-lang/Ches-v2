@@ -27,8 +27,9 @@
     }
 %}
 
-%lex
 %options flex
+
+%lex
 
 %x MULTILINE_COMMENT
 
@@ -89,6 +90,14 @@ VARIABLE_TAIL [A-Za-z_$0-9]
 "0o"[0-7]+                                        { yylval = base.oct(yytext); return 'NUMBER' };
 "0b"[0-1]+                                        { yylval = base.bin(yytext); return 'NUMBER' };
 
+if                                                return yytext;
+else                                              return yytext;
+
+let                                               return yytext;
+const                                             return yytext;
+
+"="                                               return '=';
+
 "."                                               return '.';
 ","                                               return ',';
 {VARIABLE_HEAD}{VARIABLE_TAIL}*                   return 'VARIABLE';
@@ -96,13 +105,18 @@ VARIABLE_TAIL [A-Za-z_$0-9]
 "]"                                               return ']';
 "("                                               return '(';
 ")"                                               return ')';
+"{"                                               return '{';
+"}"                                               return '}';
 
 "@"[A-Za-z0-9_$]+                                 { yytext = yytext.substring(1); return 'SYMBOL' };
 
 
 ";"                                               return 'SB';
 \n                                                return 'SB';
+\r                                                return 'SB';
 <<EOF>>                                           return 'SB';
 
-\s+                                               ; // Whitespace
+[^\S\n]+                                          ; // Whitespace
 .                                                 return yytext
+
+%%

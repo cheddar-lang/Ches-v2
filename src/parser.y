@@ -5,11 +5,10 @@
     var node = require('./nodes');
 %}
 
-%token LPAREN '('
-%token RPAREN ')'
+%token LAMBDA_INDICATOR
 
-%token COMMA  ','
-%token DOT    '.'
+%nonassoc IF_NO_ELSE
+%nonassoc else
 
 %%
 
@@ -28,11 +27,70 @@ Statements
     ;
 
 Statement
-    : Expression
+    : VariableDeclaration 
+    | IfStatement
+    | Expression
     ;
+
+/**
+ * VariableDeclaration
+ *
+ * I might misspell this so sorry in advance
+ */
+
+VariableDeclaration
+    : DeclarationModifier TypedIdentifier DeclarationSuffix -> new node.DeclarationStatement(@$, $1, $2, $3)
+    ;
+
+DeclarationModifier
+    : let
+    | const
+    ;
+
+DeclarationSuffix
+    : '=' Expression                                       -> $2
+    |                                                      -> null
+    ;
+
+/**
+ * Unbound Statement
+ *
+ * Series of statements not bound to end
+ */
+
+UnboundStatement
+    : UnboundStatement SB Statement
+    | Statement
+    ;
+
+/**
+ * If Statement
+ *
+ * : if ( Expression ) { Statements } [IfSuffix]
+ * | if ( Expression ) Statement      [IfSuffix]
+ */
+
+IfStatement
+    : if '(' Expression ')' '{' UnboundStatement '}' IfSuffix -> [ $Expression, $UnboundStatement, $IfSuffix ]
+    | if '(' Expression ')'            Statement     IfSuffix -> [ $Expression, $Statement, $IfSuffix ]
+    ;
+
+IfSuffix
+    : else '{' UnboundStatement '}'
+    | else            Statement
+    | %prec IF_NO_ELSE
+    ;
+
+/**
+ * Expressions
+ *
+ * This fullfills both as a statement and
+ * all other fragment usages
+ */
 
 Expression
     : PropertyExpression            -> new node.ExpressionStatement(@1, $1)
+//    | IndependentLiteral            -> new node.ExpressionStatement(@1, $1)
     ;
 
 // Handle Properties
@@ -43,13 +101,14 @@ Expression
 //     I_a I_b I_c
 
 PropertyExpression
-    : PropertyHead PropertyTail     -> new node.PropertyExpression(@2, $1, $2)
-    | PropertyHead
+    : PropertyHead PropertyTail    -> new node.PropertyExpression(@2, $1, $2)
+    | PropertyHead 
     ;
 
 PropertyHead
-    : Identifier
-    | Literal
+    : Literal
+    | Identifier
+    | '(' Expression ')'           -> $2
     ;
 
 PropertyTail
@@ -58,7 +117,7 @@ PropertyTail
     ;
 
 PropertyTailItem
-    : '.' Identifier                -> $2
+    : '.' Identifier               -> $2
     | '[' Expression ']'            -> new node.EvaluatedIdentifier(@2, $2)
     | '(' List ')'                  -> new node.ArgumentList(@2, $2)
     ;
@@ -76,6 +135,10 @@ Literal
     | Array
     | Symbol
     | Dictionary
+    ;
+
+IndependentLiteral
+    : Lambda
     ;
 
 Number
@@ -109,6 +172,38 @@ DictionaryItem
     : Expression ':' Expression          -> [ $1, $3 ]
     ;
 
+/* Lambdas are a mix of the "function" section and this */
+Lambda
+    : FunctionHead LAMBDA_INDICATOR LambdaBody -> new node.Lambda(@$, $1, $2)
+    | LAMBDA_INDICATOR LambdaBody
+    ;
+
+// TODO: include "return" statement
+LambdaBody
+    :
+    ;
+
+/**
+ * "Function" Rules
+ *
+ * Defines a series of rules for parsing functions
+ */
+
+FunctionHead
+    : '(' FunctionHeadItems ')' -> $2
+    ;
+
+FunctionHeadItems
+    : 
+    | FunctionHeadItem                       -> [ $1 ]
+    | FunctionHeadItems ',' FunctionHeadItem -> $1.concat($3)
+    ;
+
+FunctionHeadItem
+    : Identifier Type '?'                    -> new node.FunctionArgument(@$, [$1, $2], true)
+    | Identifier Type                        -> new node.FunctionArgument(@$, [$1, $2], false)
+    ;
+
 /**
  * "Helper" Rules
  *
@@ -129,4 +224,9 @@ ListItems
 
 Identifier
     : VARIABLE -> new node.Identifier(@1, $1)
+    ;
+
+TypedIdentifier
+    : VARIABLE ':' Identifier -> [$1, $3]
+    | VARIABLE                -> [$1, null]
     ;
