@@ -18,10 +18,4 @@ let a
 let a: b = 1
 let a: b
 
-if ( goat ) { goat }
-if ( a ) { b } else if (goat) { c }
-
-if ( a )
-    b;
-else (c)
-    d;
+a abc
