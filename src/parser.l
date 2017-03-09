@@ -81,7 +81,7 @@ VARIABLE_TAIL [A-Za-z_$0-9]
                                                     return 'STRING'
                                                   }
 
-"->"                                              return 'LAMBDA_INDICATOR';
+"->"                                              return '->';
 "?"                                               return '?';
 
 \d+(\.\d+)?                                       return 'NUMBER';

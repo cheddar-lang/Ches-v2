@@ -90,7 +90,7 @@ IfSuffix
 
 Expression
     : PropertyExpression            -> new node.ExpressionStatement(@1, $1)
-//    | IndependentLiteral            -> new node.ExpressionStatement(@1, $1)
+    | IndependentLiteral            -> new node.ExpressionStatement(@1, $1)
     ;
 
 // Handle Properties
@@ -174,8 +174,8 @@ DictionaryItem
 
 /* Lambdas are a mix of the "function" section and this */
 Lambda
-    : FunctionHead LAMBDA_INDICATOR LambdaBody -> new node.Lambda(@$, $1, $2)
-    | LAMBDA_INDICATOR LambdaBody
+    : FunctionHead '->' LambdaBody -> new node.Lambda(@$, $1, $2)
+    | '->' LambdaBody
     ;
 
 // TODO: include "return" statement
@@ -199,9 +199,10 @@ FunctionHeadItems
     | FunctionHeadItems ',' FunctionHeadItem -> $1.concat($3)
     ;
 
+// TODO: Solve conflict with typed Identifiers
 FunctionHeadItem
-    : Identifier Type '?'                    -> new node.FunctionArgument(@$, [$1, $2], true)
-    | Identifier Type                        -> new node.FunctionArgument(@$, [$1, $2], false)
+    : Identifier '?'                    -> new node.FunctionArgument(@$, [$1, $2], true)
+    | Identifier                        -> new node.FunctionArgument(@$, [$1, $2], false)
     ;
 
 /**
